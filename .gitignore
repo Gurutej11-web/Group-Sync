@@ -1,0 +1,19 @@
+# Node / Vite
+node_modules/
+dist/
+.cache/
+
+# Env / Local config
+.env.local
+.env
+.env.*.local
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
