@@ -21,7 +21,7 @@ export function useKeyboardShortcuts() {
       // G then D for Dashboard
       if (e.key === 'g') {
         const secondKeyListener = (e2) => {
-          if (e2.key === 'd') navigate('/')
+          if (e2.key === 'd') navigate('/dashboard')
           if (e2.key === 'j') navigate('/join')
           if (e2.key === 'p') navigate('/profile')
           window.removeEventListener('keydown', secondKeyListener)

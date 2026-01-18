@@ -5,9 +5,11 @@ import { auth } from '../firebaseConfig'
 import NavBar from './components/NavBar.jsx'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import Landing from './pages/Landing.jsx'
 import Project from './pages/Project.jsx'
 import UserProfile from './components/UserProfile.jsx'
 import JoinProject from './pages/JoinProject.jsx'
+import InteractionHub from './pages/InteractionHub.jsx'
 import { Toaster } from 'react-hot-toast'
 import { useKeyboardShortcuts } from './utils/useKeyboardShortcuts'
 
@@ -41,7 +43,11 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50/30 to-pink-50/30">
+    <div className="min-h-screen cinematic-bg text-slate-900 relative">
+      <div className="cinematic-noise" aria-hidden></div>
+      <div className="speckle-layer" aria-hidden></div>
+      <div className="float-blob blob-1" aria-hidden></div>
+      <div className="float-blob blob-2" aria-hidden></div>
       <NavBar user={user} />
       <Toaster 
         position="top-right"
@@ -61,13 +67,15 @@ function App() {
           },
         }}
       />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
         <Routes>
-          <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
-          <Route path="/" element={user ? <Dashboard user={user} /> : <Navigate to="/login" />} />
+          <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+          <Route path="/" element={<Landing user={user} />} />
+          <Route path="/dashboard" element={user ? <Dashboard user={user} /> : <Navigate to="/login" />} />
           <Route path="/project/:projectId" element={user ? <Project user={user} /> : <Navigate to="/login" />} />
           <Route path="/profile" element={user ? <UserProfile user={user} /> : <Navigate to="/login" />} />
           <Route path="/join" element={user ? <JoinProject user={user} /> : <Navigate to="/login" />} />
+          <Route path="/interaction" element={user ? <InteractionHub user={user} /> : <Navigate to="/login" />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

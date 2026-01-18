@@ -1,15 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from '../../firebaseConfig'
 import { ensureUserDoc } from '../utils/firestore'
 
 export default function Login() {
+  const location = useLocation()
   const [isSignup, setIsSignup] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const mode = new URLSearchParams(location.search).get('mode')
+    if (mode === 'signup') setIsSignup(true)
+  }, [location.search])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

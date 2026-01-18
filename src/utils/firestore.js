@@ -1,5 +1,5 @@
 import { auth, db } from '../../firebaseConfig'
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, getDocs } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, getDocs, increment, deleteDoc } from 'firebase/firestore'
 import { v4 as uuidv4 } from 'uuid'
 
 // Users
@@ -27,6 +27,16 @@ export async function updateUserProfile(uid, profile) {
   await updateDoc(ref, profile)
 }
 
+// Batch fetch of user docs by uid for member display
+export async function getUsersByIds(uids = []) {
+  const uniqueIds = Array.from(new Set(uids)).filter(Boolean)
+  if (!uniqueIds.length) return []
+  const snapshots = await Promise.all(uniqueIds.map((uid) => getDoc(doc(db, 'users', uid))))
+  return snapshots
+    .filter((snap) => snap.exists())
+    .map((snap) => ({ id: snap.id, ...snap.data() }))
+}
+
 // Projects
 export async function createProject(project, user) {
   const ref = await addDoc(collection(db, 'projects'), {
@@ -46,11 +56,42 @@ export async function createProject(project, user) {
   return ref.id
 }
 export function listUserProjects(uid, setProjects) {
-  const q = query(collection(db, 'projects'), where('members', 'array-contains', uid))
-  return onSnapshot(q, (snap) => {
-    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  // Some legacy projects might not have populated members; include createdBy as fallback
+  const qMember = query(collection(db, 'projects'), where('members', 'array-contains', uid))
+  const qOwner = query(collection(db, 'projects'), where('createdBy', '==', uid))
+
+  const combine = (memberSnap, ownerSnap) => {
+    const map = new Map()
+    memberSnap?.docs.forEach((d) => map.set(d.id, { id: d.id, ...d.data() }))
+    ownerSnap?.docs.forEach((d) => map.set(d.id, { id: d.id, ...d.data() }))
+    const rows = Array.from(map.values())
+    rows.forEach(p => {
+      if (!p.createdBy && uid) {
+        // Backfill creator for legacy docs
+        updateDoc(doc(db, 'projects', p.id), { createdBy: uid }).catch(() => {})
+      }
+      if (!Array.isArray(p.members) || p.members.length === 0) {
+        updateDoc(doc(db, 'projects', p.id), { members: [uid] }).catch(() => {})
+      } else if (!p.members.includes(uid)) {
+        updateDoc(doc(db, 'projects', p.id), { members: [...p.members, uid] }).catch(() => {})
+      }
+    })
     setProjects(rows)
+  }
+
+  let memberSnapCache = null
+  let ownerSnapCache = null
+
+  const unsubMember = onSnapshot(qMember, (snap) => {
+    memberSnapCache = snap
+    combine(memberSnapCache, ownerSnapCache)
   })
+  const unsubOwner = onSnapshot(qOwner, (snap) => {
+    ownerSnapCache = snap
+    combine(memberSnapCache, ownerSnapCache)
+  })
+
+  return () => { unsubMember && unsubMember(); unsubOwner && unsubOwner() }
 }
 export function getProject(projectId, setProject) {
   const ref = doc(db, 'projects', projectId)
@@ -104,6 +145,50 @@ export async function joinProjectByCode(code, uid) {
     if (!arr.includes(projectId)) await updateDoc(uref, { projects: [...arr, projectId] })
   }
   return projectId
+}
+
+export async function updateProjectMeta(projectId, patch) {
+  await updateDoc(doc(db, 'projects', projectId), patch)
+}
+
+export async function deleteProject(projectId) {
+  // Capture project members for cleanup
+  const projectSnap = await getDoc(doc(db, 'projects', projectId))
+  const members = projectSnap.exists() ? (projectSnap.data().members || []) : []
+
+  // Clean up dependent docs BEFORE deleting project (so rules still work)
+  // 1. Delete all comments (both task-level and project-level)
+  const allCommentsSnap = await getDocs(query(collection(db, 'comments'), where('projectId', '==', projectId)))
+  await Promise.all(allCommentsSnap.docs.map((c) => deleteDoc(c.ref)))
+
+  // 2. Delete all tasks
+  const tasksSnap = await getDocs(query(collection(db, 'tasks'), where('projectId', '==', projectId)))
+  await Promise.all(tasksSnap.docs.map((t) => deleteDoc(t.ref)))
+
+  // 3. Delete activity feed
+  const activitySnap = await getDocs(query(collection(db, 'activityFeed'), where('projectId', '==', projectId)))
+  await Promise.all(activitySnap.docs.map((d) => deleteDoc(d.ref)))
+
+  // 4. Delete shoutouts
+  const shoutoutsSnap = await getDocs(query(collection(db, 'shoutouts'), where('projectId', '==', projectId)))
+  await Promise.all(shoutoutsSnap.docs.map((d) => deleteDoc(d.ref)))
+
+  // 5. Delete moods
+  const moodsSnap = await getDocs(query(collection(db, 'moods'), where('projectId', '==', projectId)))
+  await Promise.all(moodsSnap.docs.map((d) => deleteDoc(d.ref)))
+
+  // 6. Finally remove the project itself
+  await deleteDoc(doc(db, 'projects', projectId))
+
+  // 7. Remove project from user docs (best-effort cleanup)
+  await Promise.all(members.map(async (uid) => {
+    const uref = doc(db, 'users', uid)
+    const usnap = await getDoc(uref)
+    if (usnap.exists()) {
+      const arr = (usnap.data().projects || []).filter((pid) => pid !== projectId)
+      await updateDoc(uref, { projects: arr }).catch(() => {})
+    }
+  }))
 }
 
 // Tasks
@@ -195,9 +280,20 @@ export function listCommentsForTask(taskId, setComments) {
     setComments(rows)
   })
 }
-export async function addComment(taskId, { text }, user) {
+
+export function listCommentsForProject(projectId, setComments) {
+  if (!projectId) return () => {}
+  const q = query(collection(db, 'comments'), where('projectId', '==', projectId), orderBy('timestamp', 'desc'))
+  return onSnapshot(q, (snap) => {
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    setComments(rows)
+  })
+}
+
+export async function addComment(taskId, projectId, { text }, user) {
   await addDoc(collection(db, 'comments'), {
     taskId,
+    projectId,
     user: user.uid,
     userName: user.displayName || user.email,
     text,
@@ -217,4 +313,75 @@ export async function addComment(taskId, { text }, user) {
       })
     })
   }
+}
+
+export async function updateComment(commentId, { text }) {
+  await updateDoc(doc(db, 'comments', commentId), { text })
+}
+
+export async function deleteCommentDoc(commentId) {
+  await deleteDoc(doc(db, 'comments', commentId))
+}
+
+// Human Interaction: Shoutouts & Mood
+export function listShoutouts(projectId, setShoutouts) {
+  if (!projectId) return () => {}
+  const q = query(collection(db, 'shoutouts'), where('projectId', '==', projectId), orderBy('timestamp', 'desc'))
+  return onSnapshot(q, (snap) => {
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    setShoutouts(rows)
+  })
+}
+
+export async function addShoutout({ message, toUser, toName, projectId }, user) {
+  if (!projectId) throw new Error('Select a project first')
+  await addDoc(collection(db, 'shoutouts'), {
+    message,
+    toUser: toUser || null,
+    toName: toName || 'Team',
+    fromUser: user.uid,
+    fromName: user.displayName || user.email,
+    cheers: 0,
+    projectId,
+    timestamp: serverTimestamp(),
+  })
+}
+
+export async function cheerShoutout(shoutoutId) {
+  const ref = doc(db, 'shoutouts', shoutoutId)
+  await updateDoc(ref, { cheers: increment(1) })
+}
+
+export async function updateShoutout(shoutoutId, { message, toName }) {
+  await updateDoc(doc(db, 'shoutouts', shoutoutId), { message, toName })
+}
+
+export async function deleteShoutout(shoutoutId) {
+  await deleteDoc(doc(db, 'shoutouts', shoutoutId))
+}
+
+export function listMoods(projectId, setMoods) {
+  if (!projectId) return () => {}
+  const q = query(collection(db, 'moods'), where('projectId', '==', projectId), orderBy('updatedAt', 'desc'))
+  return onSnapshot(q, (snap) => {
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    setMoods(rows)
+  })
+}
+
+export async function setMoodStatus(user, mood, note = '', projectId) {
+  if (!projectId) throw new Error('Select a project first')
+  const ref = doc(db, 'moods', `${projectId}_${user.uid}`)
+  await setDoc(ref, {
+    user: user.uid,
+    name: user.displayName || user.email,
+    mood,
+    note,
+    projectId,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function deleteMood(projectId, uid) {
+  await deleteDoc(doc(db, 'moods', `${projectId}_${uid}`))
 }

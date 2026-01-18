@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is owner or member of a project
+    function isOwnerOrMember(projectId) {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/projects/$(projectId)) &&
+             (get(/databases/$(database)/documents/projects/$(projectId)).data.createdBy == request.auth.uid ||
+              request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.members);
+    }
+    
+    // Users collection - users can read/write their own document
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Projects collection
+    match /projects/{projectId} {
+      // Anyone authenticated can create a project
+      allow create: if isSignedIn() && 
+                      request.resource.data.createdBy == request.auth.uid;
+      
+      // Only owner or members can read
+      allow read: if isSignedIn() && 
+                    (resource.data.createdBy == request.auth.uid ||
+                     request.auth.uid in resource.data.members);
+      
+      // Only owner can update or delete
+      allow update, delete: if isSignedIn() && 
+                              resource.data.createdBy == request.auth.uid;
+    }
+    
+    // Tasks collection
+    match /tasks/{taskId} {
+      // Members/owners can create tasks in their projects
+      allow create: if isSignedIn() && 
+                      request.resource.data.projectId is string &&
+                      isOwnerOrMember(request.resource.data.projectId);
+      
+      // Members/owners can read tasks from their projects
+      allow read: if isSignedIn() && 
+                    resource.data.projectId is string &&
+                    isOwnerOrMember(resource.data.projectId);
+      
+      // Members/owners can update/delete tasks in their projects
+      allow update, delete: if isSignedIn() && 
+                              resource.data.projectId is string &&
+                              isOwnerOrMember(resource.data.projectId);
+    }
+    
+    // Comments collection
+    match /comments/{commentId} {
+      // Members/owners can create comments in their projects
+      allow create: if isSignedIn() && 
+                      request.resource.data.projectId is string &&
+                      isOwnerOrMember(request.resource.data.projectId);
+      
+      // Members/owners can read comments from their projects
+      allow read: if isSignedIn() && 
+                    resource.data.projectId is string &&
+                    isOwnerOrMember(resource.data.projectId);
+      
+      // Author or project owner can update/delete comments
+      allow update, delete: if isSignedIn() && 
+                              resource.data.projectId is string &&
+                              (resource.data.userId == request.auth.uid ||
+                               isOwnerOrMember(resource.data.projectId));
+    }
+    
+    // Activity feed collection
+    match /activityFeed/{activityId} {
+      // Members/owners can create activity in their projects
+      allow create: if isSignedIn() && 
+                      request.resource.data.projectId is string &&
+                      isOwnerOrMember(request.resource.data.projectId);
+      
+      // Members/owners can read activity from their projects
+      allow read: if isSignedIn() && 
+                    resource.data.projectId is string &&
+                    isOwnerOrMember(resource.data.projectId);
+      
+      // Only project owner can delete activity
+      allow delete: if isSignedIn() && 
+                      resource.data.projectId is string &&
+                      isOwnerOrMember(resource.data.projectId);
+    }
+    
+    // Shoutouts collection
+    match /shoutouts/{shoutoutId} {
+      // Members/owners can create shoutouts in their projects
+      allow create: if isSignedIn() && 
+                      request.resource.data.projectId is string &&
+                      isOwnerOrMember(request.resource.data.projectId);
+      
+      // Members/owners can read shoutouts from their projects
+      allow read: if isSignedIn() && 
+                    resource.data.projectId is string &&
+                    isOwnerOrMember(resource.data.projectId);
+      
+      // Author can update/delete their shoutouts, or project owner
+      allow update, delete: if isSignedIn() && 
+                              resource.data.projectId is string &&
+                              (resource.data.userId == request.auth.uid ||
+                               isOwnerOrMember(resource.data.projectId));
+    }
+    
+    // Moods collection
+    match /moods/{moodId} {
+      // Members/owners can create moods in their projects
+      allow create: if isSignedIn() && 
+                      request.resource.data.projectId is string &&
+                      isOwnerOrMember(request.resource.data.projectId);
+      
+      // Members/owners can read moods from their projects
+      allow read: if isSignedIn() && 
+                    resource.data.projectId is string &&
+                    isOwnerOrMember(resource.data.projectId);
+      
+      // Author can update/delete their moods, or project owner
+      allow update, delete: if isSignedIn() && 
+                              resource.data.projectId is string &&
+                              (resource.data.userId == request.auth.uid ||
+                               isOwnerOrMember(resource.data.projectId));
+    }
+  }
+}

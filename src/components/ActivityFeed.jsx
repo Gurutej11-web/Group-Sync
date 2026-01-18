@@ -11,12 +11,12 @@ export default function ActivityFeed({ projectId }) {
     <div className="space-y-2">
       {activity.map(a => (
         <div key={a.id} className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600">{new Date(a.timestamp?.toDate?.() ?? a.timestamp).toLocaleString()}</span>
-          <span>•</span>
-          <span>{a.action}</span>
+          <span className="text-slate-600">{new Date(a.timestamp?.toDate?.() ?? a.timestamp).toLocaleString()}</span>
+          <span className="text-slate-400">•</span>
+          <span className="text-slate-900">{a.action}</span>
         </div>
       ))}
-      {activity.length === 0 && <div className="text-sm text-gray-600">No activity yet.</div>}
+      {activity.length === 0 && <div className="text-sm text-slate-600">No activity yet.</div>}
     </div>
   )
 }

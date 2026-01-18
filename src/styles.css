@@ -3,27 +3,119 @@
 @tailwind utilities;
 
 :root {
-  --gs-card: #ffffff;
+  --gs-card: #f7f9ff;
+  --gs-glow: rgba(255, 184, 122, 0.28);
+  --gs-surface: rgba(255, 255, 255, 0.9);
+  --gs-border: rgba(15, 23, 42, 0.06);
 }
 
 /* Simple utility classes */
 .card {
-  @apply bg-white rounded-lg shadow-sm border border-gray-200;
+  @apply rounded-xl shadow-lg border border-[color:var(--gs-border)] bg-[color:var(--gs-surface)] backdrop-blur-xl text-slate-900;
 }
 .btn {
   @apply inline-flex items-center justify-center px-3 py-2 rounded-md font-medium transition;
 }
 .btn-primary {
-  @apply btn bg-primary-600 text-white hover:bg-primary-700;
+  @apply btn bg-gradient-to-r from-purple-500 via-fuchsia-500 to-orange-400 text-white hover:brightness-110 shadow-md shadow-fuchsia-500/30;
 }
 .btn-secondary {
-  @apply btn bg-gray-100 text-gray-800 hover:bg-gray-200;
+  @apply btn bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200;
 }
 .input {
-  @apply w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500;
+  @apply w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-300;
 }
 .label {
-  @apply block text-sm font-medium text-gray-700 mb-1;
+  @apply block text-sm font-medium text-slate-700 mb-1;
+}
+
+.cinematic-bg {
+  position: relative;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 214, 170, 0.35), transparent 38%),
+              radial-gradient(circle at 80% 10%, rgba(135, 176, 255, 0.35), transparent 34%),
+              radial-gradient(circle at 50% 80%, rgba(150, 236, 233, 0.32), transparent 36%),
+              linear-gradient(135deg, #f5f7ff 0%, #eef3ff 40%, #e8f6ff 100%);
+  color: #0f172a;
+}
+
+.cinematic-bg::before,
+.cinematic-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 40%, rgba(236, 72, 153, 0.14), transparent 35%),
+              radial-gradient(circle at 70% 60%, rgba(59, 130, 246, 0.12), transparent 30%);
+  filter: blur(60px);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.cinematic-bg::after {
+  mix-blend-mode: screen;
+  animation: slow-pan 16s ease-in-out infinite alternate;
+  opacity: 0.35;
+}
+
+.float-blob {
+  position: absolute;
+  width: 26rem;
+  height: 26rem;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.18;
+  mix-blend-mode: screen;
+  animation: blob-drift 22s ease-in-out infinite;
+}
+
+.blob-1 { background: linear-gradient(135deg, rgba(255, 199, 152, 0.8), rgba(255, 148, 214, 0.65)); top: -6rem; left: -4rem; animation-delay: -4s; }
+.blob-2 { background: linear-gradient(135deg, rgba(135, 176, 255, 0.65), rgba(140, 236, 233, 0.7)); bottom: -8rem; right: -6rem; animation-delay: -8s; }
+
+@keyframes blob-drift {
+  0% { transform: translate3d(0,0,0) scale(1); }
+  50% { transform: translate3d(20px, -10px, 0) scale(1.05); }
+  100% { transform: translate3d(-10px, 15px, 0) scale(1); }
+}
+
+/* Soft speckles to add life without space motif */
+.speckle-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(1px 1px at 10px 20px, rgba(15,23,42,0.12), transparent),
+                    radial-gradient(1px 1px at 80px 40px, rgba(15,23,42,0.08), transparent),
+                    radial-gradient(1px 1px at 140px 120px, rgba(15,23,42,0.12), transparent);
+  background-size: 180px 180px;
+  opacity: 0.5;
+  animation: speckle-drift 48s linear infinite;
+}
+
+@keyframes speckle-drift {
+  from { transform: translate3d(0,0,0); }
+  to { transform: translate3d(-90px, -60px, 0); }
+}
+
+.cinematic-noise {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'%3E%3C/feTurbulence%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.14'/%3E%3C/svg%3E");
+  opacity: 0.25;
+  z-index: 1;
+}
+
+.cinematic-nav {
+  @apply border-b border-slate-200 bg-white/90 backdrop-blur-xl shadow-lg shadow-slate-200/50;
+}
+
+.cinematic-panel {
+  border: 1px solid var(--gs-border);
+  background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.82));
+  box-shadow: 0 20px 60px rgba(15,23,42,0.12), 0 0 0 1px rgba(255,255,255,0.6);
+}
+
+@keyframes slow-pan {
+  0% { transform: translate3d(-10px, -6px, 0) scale(1); }
+  100% { transform: translate3d(10px, 12px, 0) scale(1.05); }
 }
 
 /* Confetti Animation */
@@ -90,4 +182,14 @@
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.glass-chip {
+  @apply inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/15 bg-white/10 text-white text-sm backdrop-blur;
+}
+
+.soft-divider {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
 }
