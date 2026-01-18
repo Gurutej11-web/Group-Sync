@@ -4,37 +4,96 @@ import { getProject, listProjectTasks, addTask, updateTaskStatus, listCommentsFo
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import toast from 'react-hot-toast'
 import Leaderboard from '../components/Leaderboard.jsx'
+import { triggerConfetti, playSuccessSound } from '../utils/effects'
 
 function TaskColumn({ title, status, tasks, onStatusChange, onComment }) {
+  const statusColors = {
+    'To Do': 'from-gray-500 to-gray-600',
+    'In Progress': 'from-blue-500 to-blue-600',
+    'Done': 'from-green-500 to-green-600'
+  }
+  
+  const priorityColors = {
+    'High': 'border-l-4 border-red-500 bg-red-50',
+    'Medium': 'border-l-4 border-orange-500 bg-orange-50',
+    'Low': 'border-l-4 border-blue-500 bg-blue-50'
+  }
+
   return (
-    <div className="card p-3">
-      <h3 className="font-semibold mb-2">{title}</h3>
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="flex items-center gap-2 mb-3">
+        <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${statusColors[status]}`}></div>
+        <h3 className="font-bold text-gray-900">{title}</h3>
+        <span className="ml-auto text-xs font-medium text-gray-500">{tasks.filter(t => t.status === status).length}</span>
+      </div>
       <Droppable droppableId={status}>
-        {(provided) => (
-          <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2 min-h-[60px]">
+        {(provided, snapshot) => (
+          <div 
+            ref={provided.innerRef} 
+            {...provided.droppableProps} 
+            className={`space-y-2 min-h-[100px] rounded-lg p-2 transition-colors ${snapshot.isDraggingOver ? 'bg-purple-50' : 'bg-gray-50'}`}
+          >
             {tasks.filter(t => t.status === status).map((t, idx) => (
               <Draggable key={t.id} draggableId={t.id} index={idx}>
-                {(prov) => (
-                  <div ref={prov.innerRef} {...prov.draggableProps} {...prov.dragHandleProps} className="border rounded p-2 bg-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{t.title}</div>
-                        <div className="text-xs text-gray-600">Priority: {t.priority} • Points: {t.points}</div>
+                {(prov, snap) => (
+                  <div 
+                    ref={prov.innerRef} 
+                    {...prov.draggableProps} 
+                    {...prov.dragHandleProps} 
+                    className={`rounded-lg p-3 bg-white border shadow-sm hover:shadow-md transition-all ${priorityColors[t.priority]} ${snap.isDragging ? 'rotate-2 scale-105 shadow-lg' : ''}`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900">{t.title}</div>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
+                            <span className={`px-2 py-0.5 rounded font-medium ${t.priority === 'High' ? 'bg-red-100 text-red-700' : t.priority === 'Medium' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {t.priority}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                              {t.points}
+                            </span>
+                            {t.deadline && (
+                              <span className="flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                {new Date(t.deadline).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          {status !== 'Done' && (
+                            <button 
+                              className="p-1.5 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors" 
+                              onClick={() => onStatusChange(t, 'Done')}
+                              title="Mark as done"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        {status !== 'To Do' && <button className="btn-secondary" onClick={() => onStatusChange(t, 'To Do')}>To Do</button>}
-                        {status !== 'In Progress' && <button className="btn-secondary" onClick={() => onStatusChange(t, 'In Progress')}>In Progress</button>}
-                        {status !== 'Done' && <button className="btn-primary" onClick={() => onStatusChange(t, 'Done')}>Done</button>}
-                      </div>
+                      <CommentThread taskId={t.id} onAdd={(text) => onComment(t, text)} />
                     </div>
-                    <CommentThread taskId={t.id} onAdd={(text) => onComment(t, text)} />
                   </div>
                 )}
               </Draggable>
             ))}
             {provided.placeholder}
             {tasks.filter(t => t.status === status).length === 0 && (
-              <div className="text-sm text-gray-600">No tasks.</div>
+              <div className="text-center py-8 text-sm text-gray-400">
+                <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                No tasks yet
+              </div>
             )}
           </div>
         )}
@@ -108,7 +167,16 @@ export default function Project({ user }) {
 
   const onStatusChange = async (task, status) => {
     await updateTaskStatus(projectId, task, status, user)
-    if (status === 'Done') toast.success('Task completed')
+    if (status === 'Done') {
+      triggerConfetti()
+      playSuccessSound()
+      toast.success('🎉 Task completed! Great job!', {
+        duration: 4000,
+        icon: '✨',
+      })
+    } else {
+      toast.success('Task updated')
+    }
   }
 
   const onComment = async (task, text) => {

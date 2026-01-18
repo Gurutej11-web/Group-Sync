@@ -9,10 +9,13 @@ import Project from './pages/Project.jsx'
 import UserProfile from './components/UserProfile.jsx'
 import JoinProject from './pages/JoinProject.jsx'
 import { Toaster } from 'react-hot-toast'
+import { useKeyboardShortcuts } from './utils/useKeyboardShortcuts'
 
 function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  
+  useKeyboardShortcuts()
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -68,6 +71,18 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
+      
+      {/* Keyboard Shortcut Indicator */}
+      {user && (
+        <div className="fixed bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-3 text-xs text-gray-600 border border-gray-200 hidden lg:block">
+          <div className="font-semibold mb-1 text-purple-600">⌨️ Shortcuts</div>
+          <div className="space-y-0.5">
+            <div><kbd className="px-1.5 py-0.5 bg-gray-100 rounded">g</kbd> + <kbd className="px-1.5 py-0.5 bg-gray-100 rounded">d</kbd> Dashboard</div>
+            <div><kbd className="px-1.5 py-0.5 bg-gray-100 rounded">g</kbd> + <kbd className="px-1.5 py-0.5 bg-gray-100 rounded">j</kbd> Join</div>
+            <div><kbd className="px-1.5 py-0.5 bg-gray-100 rounded">?</kbd> Help</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

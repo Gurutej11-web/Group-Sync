@@ -25,3 +25,69 @@
 .label {
   @apply block text-sm font-medium text-gray-700 mb-1;
 }
+
+/* Confetti Animation */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  z-index: 9999;
+  animation: confetti-fall 3s linear forwards;
+}
+
+/* Skeleton Loader */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+/* Smooth entrance animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Pulse glow effect */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(147, 51, 234, 0.6);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
